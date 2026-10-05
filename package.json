@@ -1,0 +1,23 @@
+{
+  "name": "jurlay-agent",
+  "version": "1.0.0",
+  "description": "JURLAY AGENT - Virtual AI Software House & Hermes Orchestrator",
+  "scripts": {
+    "dev": "bash ./start-dev.sh dev",
+    "start": "bash ./start-dev.sh start",
+    "build": "bash ./start-dev.sh build",
+    "install:all": "bash ./start-dev.sh install",
+    "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "db:seed": "cd backend && npm run seed"
+  },
+  "keywords": [
+    "hermes-agent",
+    "autonomous-ai",
+    "software-house",
+    "kanban",
+    "terminal",
+    "ai-workforce"
+  ],
+  "author": "Nyons (CEO)",
+  "license": "ISC"
+}
