@@ -82,6 +82,12 @@ export const DirectChatModal: React.FC<DirectChatModalProps> = ({
           "Minta laporan status progres kerja",
           "Prioritaskan backlog sprint ini",
         ];
+      case "PLANNER":
+        return [
+          "Rancang cetak biru arsitektur sistem",
+          "Buatkan diagram alur & dependensi modul",
+          "Analisis mitigasi risiko teknis",
+        ];
       case "BACKEND":
         return [
           "Bikinin rancangan API & tabel MySQL",
@@ -93,6 +99,12 @@ export const DirectChatModal: React.FC<DirectChatModalProps> = ({
           "Bikinin komponen UI dengan Tailwind",
           "Perbaiki tata letak agar ramah mobile",
           "Sesuaikan palet warna merah & abu-abu",
+        ];
+      case "CODE_REVIEWER":
+        return [
+          "Audit kebersihan kode (Clean Code & SOLID)",
+          "Periksa potensi technical debt",
+          "Beri saran refactoring fungsi",
         ];
       case "QA":
         return [
@@ -131,7 +143,11 @@ export const DirectChatModal: React.FC<DirectChatModalProps> = ({
                 alt={employee.name}
                 className="w-11 h-11 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-0.5 border border-zinc-200 dark:border-zinc-700"
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900" />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${
+                  employee.is_online !== false ? "bg-emerald-500" : "bg-zinc-400"
+                }`}
+              />
             </div>
 
             <div>
@@ -142,7 +158,16 @@ export const DirectChatModal: React.FC<DirectChatModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
-                @{employee.profile_name} · <span className="text-emerald-600 dark:text-emerald-400 font-medium">Siap Berdiskusi</span>
+                @{employee.profile_name} ·{" "}
+                <span
+                  className={
+                    employee.is_online !== false
+                      ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                      : "text-zinc-400 font-medium"
+                  }
+                >
+                  {employee.is_online !== false ? "Online (Siap Berdiskusi)" : "Offline (Tidak Aktif)"}
+                </span>
               </p>
             </div>
           </div>

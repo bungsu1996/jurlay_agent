@@ -3,8 +3,10 @@ import path from "path";
 
 export class AiRouterService {
   private static apiKey: string | null = null;
-  private static baseUrl = process.env.ROUTER_BASE_URL || "http://localhost:20128/v1";
-  private static model = process.env.ROUTER_MODEL || "combogravuty";
+  private static baseUrl = process.env.ROUTER_BASE_URL || "http://127.0.0.1:20128/v1";
+  private static model = process.env.ROUTER_MODEL && process.env.ROUTER_MODEL !== "combogravuty" 
+    ? process.env.ROUTER_MODEL 
+    : "antigravity";
 
   public static getApiKey(): string {
     if (this.apiKey) return this.apiKey;
@@ -13,18 +15,25 @@ export class AiRouterService {
       return this.apiKey;
     }
 
-    // Ambil otomatis dari ~/.hermes/.env jika ada
-    const hermesEnvPath = path.join(process.env.HOME || "/Users/apple", ".hermes", ".env");
-    if (fs.existsSync(hermesEnvPath)) {
-      try {
-        const content = fs.readFileSync(hermesEnvPath, "utf-8");
-        const match = content.match(/HERMES_CUSTOM_LOCALHOST_20128_API_KEY=(.*)/);
-        if (match && match[1]) {
-          this.apiKey = match[1].trim();
-          return this.apiKey;
+    // Ambil otomatis dari konfigurasi .env hermes (kompatibel Windows & Linux/Mac)
+    const possiblePaths = [
+      path.join(process.env.LOCALAPPDATA || "", "hermes", ".env"),
+      path.join(process.env.USERPROFILE || "", ".hermes", ".env"),
+      path.join(process.env.HOME || "", ".hermes", ".env"),
+    ];
+
+    for (const envPath of possiblePaths) {
+      if (envPath && fs.existsSync(envPath)) {
+        try {
+          const content = fs.readFileSync(envPath, "utf-8");
+          const match = content.match(/(?:HERMES_CUSTOM_ANTIGRAVITY_9ROUTER_API_KEY|HERMES_CUSTOM_LOCALHOST_20128_API_KEY)=(.*)/);
+          if (match && match[1]) {
+            this.apiKey = match[1].trim();
+            return this.apiKey;
+          }
+        } catch (e) {
+          console.error("Gagal membaca .env hermes di path:", envPath, e);
         }
-      } catch (e) {
-        console.error("Gagal membaca .env hermes:", e);
       }
     }
     return "";

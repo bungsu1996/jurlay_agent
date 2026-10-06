@@ -27,6 +27,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         return "Ringkasan Kantor (Dashboard)";
       case "tasks":
         return "Papan Tugas (Kanban)";
+      case "task-list":
+        return "Tabel Task List & Sub-task";
       case "meetings":
         return "Ruang Diskusi (Meeting AI)";
       case "progress":

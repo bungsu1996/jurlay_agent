@@ -22,6 +22,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = ({ sessionId, name, isActive }
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const isOpenRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -49,24 +50,41 @@ const TerminalPane: React.FC<TerminalPaneProps> = ({ sessionId, name, isActive }
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-
-    term.open(containerRef.current);
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    if (containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        // ignore
+    const tryOpenTerminal = () => {
+      if (
+        !isOpenRef.current &&
+        containerRef.current &&
+        containerRef.current.offsetWidth > 0 &&
+        containerRef.current.offsetHeight > 0
+      ) {
+        try {
+          term.open(containerRef.current);
+          isOpenRef.current = true;
+          fitAddon.fit();
+        } catch (e) {
+          // ignore
+        }
       }
-    }
+    };
+
+    // If visible right away on mount, open immediately
+    tryOpenTerminal();
 
     const socket = getSocket();
     socket.emit("terminal:init", { sessionId, name });
 
     const handleOutput = (data: string) => {
-      term.write(data);
+      try {
+        if (!isOpenRef.current) {
+          tryOpenTerminal();
+        }
+        term.write(data);
+      } catch (e) {
+        // ignore xterm write error if unmounted or uninitialized
+      }
     };
 
     socket.on(`terminal:output:${sessionId}`, handleOutput);
@@ -76,7 +94,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = ({ sessionId, name, isActive }
     });
 
     const handleResize = () => {
-      if (containerRef.current && containerRef.current.offsetWidth > 0) {
+      if (containerRef.current && containerRef.current.offsetWidth > 0 && isOpenRef.current) {
         try {
           fitAddon.fit();
         } catch (e) {}
@@ -88,20 +106,31 @@ const TerminalPane: React.FC<TerminalPaneProps> = ({ sessionId, name, isActive }
       window.removeEventListener("resize", handleResize);
       onDataDisposable.dispose();
       socket.off(`terminal:output:${sessionId}`, handleOutput);
-      term.dispose();
+      isOpenRef.current = false;
+      try {
+        term.dispose();
+      } catch (e) {}
     };
   }, [sessionId]);
 
   useEffect(() => {
-    if (isActive && fitAddonRef.current && containerRef.current) {
+    if (isActive && termRef.current && containerRef.current) {
       const timer = setTimeout(() => {
-        if (containerRef.current && containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+        if (
+          containerRef.current &&
+          containerRef.current.offsetWidth > 0 &&
+          containerRef.current.offsetHeight > 0
+        ) {
           try {
+            if (!isOpenRef.current) {
+              termRef.current?.open(containerRef.current);
+              isOpenRef.current = true;
+            }
             fitAddonRef.current?.fit();
             termRef.current?.focus();
           } catch (e) {}
         }
-      }, 50);
+      }, 60);
       return () => clearTimeout(timer);
     }
   }, [isActive]);

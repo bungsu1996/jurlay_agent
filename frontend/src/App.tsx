@@ -7,19 +7,24 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { TaskBoardPage } from "./pages/TaskBoardPage";
 import { MeetingRoomPage } from "./pages/MeetingRoomPage";
 import { LiveProgressPage } from "./pages/LiveProgressPage";
+import { TaskLogsPage } from "./pages/TaskLogsPage";
 import { MultiTerminalPage } from "./pages/MultiTerminalPage";
 import { GithubHubPage } from "./pages/GithubHubPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { TaskListPage } from "./pages/TaskListPage";
 import { BottomChatDock } from "./components/BottomChatDock";
 import { api } from "./services/api";
 import { getSocket } from "./services/socket";
-import { Sparkles, Flag, FolderGit2 } from "lucide-react";
+import { Sparkles, Flag, FolderGit2, Loader2 } from "lucide-react";
+import { ErrorModal } from "./components/ErrorModal";
 
 const VALID_TABS: NavTab[] = [
   "dashboard",
+  "task-list",
   "tasks",
   "meetings",
   "progress",
+  "logs",
   "terminals",
   "github",
   "employees",
@@ -102,6 +107,7 @@ export function App() {
 
   // Create Task Modal State
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [taskAssignedEmpIds, setTaskAssignedEmpIds] = useState<string[]>([]);
 
   // Bottom Floating Chat Dock State (Classic Facebook / Gmail Style)
   const [dockedChats, setDockedChats] = useState<{ employee: any; isMinimized: boolean }[]>([]);
@@ -133,6 +139,7 @@ export function App() {
   const [taskDescription, setTaskDescription] = useState("");
   const [taskPriority, setTaskPriority] = useState("MEDIUM");
   const [taskProjectId, setTaskProjectId] = useState<string>("");
+  const [projectRootPath, setProjectRootPath] = useState<string>("");
   const [loadingCreateTask, setLoadingCreateTask] = useState(false);
 
   useEffect(() => {
@@ -185,9 +192,11 @@ export function App() {
     }
   };
 
+  const [appError, setAppError] = useState<string | null>(null);
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskTitle || !taskDescription) return;
+    if (!taskTitle || !taskDescription || loadingCreateTask) return;
 
     try {
       setLoadingCreateTask(true);
@@ -196,19 +205,23 @@ export function App() {
         description: taskDescription,
         priority: taskPriority,
         github_project_id: taskProjectId || undefined,
+        project_root_path: projectRootPath || undefined,
+        assigned_employee_ids: taskAssignedEmpIds.length > 0 ? taskAssignedEmpIds : undefined,
       });
 
       setIsCreateTaskOpen(false);
       setTaskTitle("");
       setTaskDescription("");
       setTaskPriority("MEDIUM");
+      setProjectRootPath("");
+      setTaskAssignedEmpIds([]);
       await loadAllData();
 
       // Navigate to task board
       setSelectedMeetingTaskId(created.id);
       setCurrentTab("tasks");
     } catch (err: any) {
-      alert("Gagal membuat tugas: " + err.message);
+      setAppError("Gagal membuat tugas baru: " + (err.message || err.toString()));
     } finally {
       setLoadingCreateTask(false);
     }
@@ -221,6 +234,11 @@ export function App() {
 
   const handleApprovePlan = async (taskId: string) => {
     await api.approvePlan(taskId);
+    await loadAllData();
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, status: string) => {
+    await api.updateTaskStatus(taskId, status);
     await loadAllData();
   };
 
@@ -259,6 +277,13 @@ export function App() {
             />
           )}
 
+          {currentTab === "task-list" && (
+            <TaskListPage
+              onNavigate={setCurrentTab}
+              onRefreshData={loadAllData}
+            />
+          )}
+
           {currentTab === "tasks" && (
             <TaskBoardPage
               tasks={tasks}
@@ -266,6 +291,7 @@ export function App() {
               employees={employees}
               onStartMeeting={handleStartMeeting}
               onApprovePlan={handleApprovePlan}
+              onUpdateTaskStatus={handleUpdateTaskStatus}
               onNavigate={setCurrentTab}
               onSelectTaskForMeeting={setSelectedMeetingTaskId}
               onSelectTaskForProgress={setSelectedProgressTaskId}
@@ -280,11 +306,20 @@ export function App() {
               onSelectTask={setSelectedMeetingTaskId}
               onApprovePlan={handleApprovePlan}
               onNavigate={setCurrentTab}
+              onRefreshTasks={loadAllData}
             />
           )}
 
           {currentTab === "progress" && (
             <LiveProgressPage
+              tasks={tasks}
+              selectedTaskId={selectedProgressTaskId}
+              onSelectTask={setSelectedProgressTaskId}
+            />
+          )}
+
+          {currentTab === "logs" && (
+            <TaskLogsPage
               tasks={tasks}
               selectedTaskId={selectedProgressTaskId}
               onSelectTask={setSelectedProgressTaskId}
@@ -358,6 +393,19 @@ export function App() {
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+              Root Path Project (Opsional Spesiﬁk Path)
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: C:\WorkSpace\Rumah\jurlay-agent"
+              value={projectRootPath}
+              onChange={(e) => setProjectRootPath(e.target.value)}
+              className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-red-500 rounded-xl px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none transition-colors"
+            />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
@@ -394,6 +442,54 @@ export function App() {
             </div>
           </div>
 
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                Penugasan Karyawan AI (Opsional 1-on-1 / Tim Spesifik)
+              </label>
+              <button
+                type="button"
+                onClick={() => setTaskAssignedEmpIds([])}
+                className="text-[10px] font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+              >
+                {taskAssignedEmpIds.length === 0 ? "🌐 Semua Tim AI" : "Reset ke Semua Tim"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {employees.map((emp) => {
+                const isSelected = taskAssignedEmpIds.includes(emp.id);
+                return (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setTaskAssignedEmpIds(taskAssignedEmpIds.filter((id) => id !== emp.id));
+                      } else {
+                        setTaskAssignedEmpIds([...taskAssignedEmpIds, emp.id]);
+                      }
+                    }}
+                    className={`flex items-center gap-2 p-1.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-red-50 dark:bg-red-950/60 border-red-500 text-red-700 dark:text-red-300 shadow-xs"
+                        : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400"
+                    }`}
+                  >
+                    <img
+                      src={emp.avatar_url}
+                      alt={emp.name}
+                      className="w-5 h-5 rounded-full object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-[10px] truncate leading-tight">{emp.name}</div>
+                      <div className="text-[9px] text-zinc-500 dark:text-zinc-400 truncate">{emp.role}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-xs text-zinc-700 dark:text-zinc-300 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
             <div>
@@ -413,9 +509,16 @@ export function App() {
             <button
               type="submit"
               disabled={loadingCreateTask}
-              className="px-5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 shadow-md shadow-red-600/30 transition-all"
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 shadow-md shadow-red-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loadingCreateTask ? "Mendelegasikan..." : "Kirim Mandat ke Tim AI"}
+              {loadingCreateTask ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Mendelegasikan...</span>
+                </>
+              ) : (
+                "Kirim Mandat ke Tim AI"
+              )}
             </button>
           </div>
         </form>
@@ -428,6 +531,13 @@ export function App() {
         onToggleMinimize={handleToggleMinimizeDockedChat}
         onOpenChat={handleOpenDockedChat}
         allEmployees={employees}
+      />
+
+      {/* App Global Error Modal */}
+      <ErrorModal
+        isOpen={!!appError}
+        onClose={() => setAppError(null)}
+        message={appError || ""}
       />
     </div>
   );

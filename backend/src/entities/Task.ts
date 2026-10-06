@@ -16,10 +16,10 @@ export class Task {
   @Column({ type: "varchar", length: 20, unique: true })
   task_code!: string;
 
-  @Column({ type: "varchar", length: 200 })
+  @Column({ type: "varchar", length: 200, charset: "utf8mb4", collation: "utf8mb4_unicode_ci" })
   title!: string;
 
-  @Column({ type: "text" })
+  @Column({ type: "text", charset: "utf8mb4", collation: "utf8mb4_unicode_ci" })
   description!: string;
 
   @Column({ type: "varchar", length: 20, default: "MEDIUM" })
@@ -41,6 +41,12 @@ export class Task {
   @ManyToOne(() => GithubProject, (proj) => proj.tasks, { nullable: true, onDelete: "SET NULL" })
   @JoinColumn({ name: "github_project_id" })
   github_project!: GithubProject | null;
+
+  @Column({ type: "varchar", length: 500, nullable: true })
+  project_root_path!: string | null;
+
+  @Column({ type: "text", nullable: true, charset: "utf8mb4", collation: "utf8mb4_unicode_ci" })
+  assigned_employee_ids_json!: string | null;
 
   @Column({ type: "text", nullable: true })
   action_plan_summary!: string | null;

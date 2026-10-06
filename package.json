@@ -7,7 +7,7 @@
     "start": "bash ./start-dev.sh start",
     "build": "bash ./start-dev.sh build",
     "install:all": "bash ./start-dev.sh install",
-    "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "setup": "cd backend && npm install && cd ../frontend && npm install",
     "db:seed": "cd backend && npm run seed"
   },
   "keywords": [

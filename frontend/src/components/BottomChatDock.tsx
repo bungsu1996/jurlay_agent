@@ -139,7 +139,11 @@ const SingleChatBox: React.FC<SingleChatBoxProps> = ({
               alt={employee.name}
               className="w-7 h-7 rounded-lg bg-zinc-800 p-0.5 border border-zinc-700"
             />
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-zinc-900" />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-zinc-900 ${
+                employee.is_online !== false ? "bg-emerald-500" : "bg-zinc-400"
+              }`}
+            />
           </div>
           <div className="min-w-0">
             <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
@@ -362,7 +366,11 @@ export const BottomChatDock: React.FC<BottomChatDockProps> = ({
                       alt=""
                       className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-800 p-0.5"
                     />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-zinc-900" />
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-zinc-900 ${
+                        emp.is_online !== false ? "bg-emerald-500" : "bg-zinc-400"
+                      }`}
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">

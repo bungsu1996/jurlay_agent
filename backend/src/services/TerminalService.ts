@@ -15,12 +15,11 @@ export class TerminalService {
     io: Server,
     socket: Socket,
     sessionId: string,
-    cwd: string = process.env.HOME || "/Users/apple",
+    cwd: string = process.env.HOME || "C:\\",
     name: string = "Terminal"
   ): void {
     const existing = this.sessions.get(sessionId);
     if (existing && existing.process && !existing.process.killed && existing.process.exitCode === null) {
-      // Re-attach to active session
       socket.emit(
         `terminal:output:${sessionId}`,
         `\r\n\x1b[32m[Terhubung ke sesi aktif: ${existing.name}]\x1b[0m\r\n$ `
@@ -32,12 +31,10 @@ export class TerminalService {
       this.closeSession(sessionId);
     }
 
-    // Default terminal based on OS
     const isWindows = process.platform === "win32";
     const shell = isWindows ? (process.env.COMSPEC || "cmd.exe") : "/bin/bash";
     const args = isWindows ? [] : ["--norc", "--noprofile", "-i"];
 
-    // Clean env to avoid NVM & npm_config_prefix conflict
     const sanitizedEnv = {
       ...process.env,
       TERM: "xterm-256color",
@@ -89,12 +86,19 @@ export class TerminalService {
     );
   }
 
-  public static writeInput(sessionId: string, input: string): void {
+  public static writeInput(io: Server, sessionId: string, input: string): void {
     const session = this.sessions.get(sessionId);
     if (session && session.process && session.process.stdin.writable) {
-      // Normalisasi carriage return (\r) ke newline (\n) agar input dieksekusi oleh shell piped
       const normalizedInput = input.replace(/\r/g, "\n");
       session.process.stdin.write(normalizedInput);
+
+      if (input === "\r" || input === "\n") {
+        io.emit(`terminal:output:${sessionId}`, "\r\n");
+      } else if (input === "\x7f" || input === "\b") {
+        io.emit(`terminal:output:${sessionId}`, "\b \b");
+      } else {
+        io.emit(`terminal:output:${sessionId}`, input);
+      }
     }
   }
 

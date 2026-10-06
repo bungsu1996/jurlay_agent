@@ -19,6 +19,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "jurlay_agent_db",
+  charset: "utf8mb4",
   synchronize: true, // Auto synchronize entities to tables in dev
   logging: false,
   entities: [
@@ -33,5 +34,6 @@ export const AppDataSource = new DataSource({
   ],
   extra: {
     connectionLimit: 10,
+    charset: "utf8mb4",
   }
 });

@@ -2,15 +2,26 @@ import React from "react";
 import {
   LayoutDashboard,
   KanbanSquare,
+  ListTodo,
   MessagesSquare,
   Activity,
+  FileText,
   Terminal,
   GitBranch,
   Users,
   Sparkles,
 } from "lucide-react";
 
-export type NavTab = "dashboard" | "tasks" | "meetings" | "progress" | "terminals" | "github" | "employees";
+export type NavTab =
+  | "dashboard"
+  | "tasks"
+  | "task-list"
+  | "meetings"
+  | "progress"
+  | "logs"
+  | "terminals"
+  | "github"
+  | "employees";
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -44,6 +55,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badgeColor: "bg-red-600 text-white",
     },
     {
+      id: "task-list" as NavTab,
+      label: "Tabel Task & Sub-task",
+      icon: ListTodo,
+      badge: "List",
+      badgeColor: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-900",
+    },
+    {
       id: "meetings" as NavTab,
       label: "Ruang Diskusi",
       icon: MessagesSquare,
@@ -55,6 +73,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "Progres Langsung",
       icon: Activity,
       badge: null,
+    },
+    {
+      id: "logs" as NavTab,
+      label: "Riwayat Log Task",
+      icon: FileText,
+      badge: "Detail",
+      badgeColor: "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-900",
     },
     {
       id: "terminals" as NavTab,

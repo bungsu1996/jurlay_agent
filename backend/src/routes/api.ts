@@ -16,6 +16,10 @@ router.patch("/tasks/:id/status", TaskController.updateTaskStatus);
 router.post("/tasks/:id/start-meeting", TaskController.startMeeting);
 router.post("/tasks/:id/approve-plan", TaskController.approvePlan);
 router.post("/tasks/:taskId/subtasks/:subTaskId/execute", TaskController.executeSubTask);
+router.post("/tasks/:taskId/subtasks/:subTaskId/apply-code", TaskController.applySubTaskCode);
+router.post("/tasks/:taskId/subtasks", TaskController.createSubTask);
+router.patch("/tasks/:taskId/subtasks/:subTaskId", TaskController.updateSubTask);
+router.delete("/tasks/:taskId/subtasks/:subTaskId", TaskController.deleteSubTask);
 router.get("/tasks/:id/logs", TaskController.getTaskLogs);
 
 // Employees
@@ -29,6 +33,7 @@ router.post("/employees/:employeeId/messages", DirectChatController.sendMessage)
 router.get("/meetings/task/:taskId", MeetingController.getMeetingByTaskId);
 router.post("/meetings/:id/message", MeetingController.sendCEOMessage);
 router.post("/meetings/:id/trigger-round", MeetingController.triggerRound);
+router.post("/discussions", TaskController.createDiscussion);
 
 // Projects / GitHub
 router.get("/projects", ProjectController.getProjects);

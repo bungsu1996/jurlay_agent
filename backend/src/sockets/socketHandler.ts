@@ -10,7 +10,7 @@ export function setupSocketHandlers(io: Server) {
     });
 
     socket.on("terminal:input", (data: { sessionId: string; input: string }) => {
-      TerminalService.writeInput(data.sessionId, data.input);
+      TerminalService.writeInput(io, data.sessionId, data.input);
     });
 
     socket.on("terminal:close", (data: { sessionId: string }) => {

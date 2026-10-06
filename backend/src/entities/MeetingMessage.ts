@@ -26,7 +26,7 @@ export class MeetingMessage {
   @JoinColumn({ name: "employee_id" })
   employee!: Employee | null;
 
-  @Column({ type: "text" })
+  @Column({ type: "text", charset: "utf8mb4", collation: "utf8mb4_unicode_ci" })
   content!: string;
 
   @CreateDateColumn()

@@ -1,13 +1,28 @@
 import simpleGit, { SimpleGit } from "simple-git";
 import fs from "fs";
+import path from "path";
 
 export class GitService {
   public static async getRepoDetails(localPath: string) {
-    if (!fs.existsSync(localPath)) {
-      throw new Error(`Directory tidak ditemukan: ${localPath}`);
+    let effectivePath = localPath;
+    if (!effectivePath || !fs.existsSync(effectivePath)) {
+      const rootPath = path.resolve(__dirname, "../../..");
+      if (fs.existsSync(rootPath)) {
+        effectivePath = rootPath;
+      } else if (fs.existsSync(process.cwd())) {
+        effectivePath = process.cwd();
+      } else {
+        return {
+          isRepo: false,
+          currentBranch: "-",
+          commits: [],
+          status: null,
+          error: `Directory tidak ditemukan: ${localPath}`,
+        };
+      }
     }
 
-    const git: SimpleGit = simpleGit(localPath);
+    const git: SimpleGit = simpleGit(effectivePath);
     const isRepo = await git.checkIsRepo();
     if (!isRepo) {
       return {

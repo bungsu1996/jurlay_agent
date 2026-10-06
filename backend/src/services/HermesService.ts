@@ -8,29 +8,37 @@ import { Employee } from "../entities/Employee";
 import { SubTask } from "../entities/SubTask";
 import { Task } from "../entities/Task";
 import { Server } from "socket.io";
+import { AiRouterService } from "./AiRouterService";
 
 export class HermesService {
   private static profilesDir = path.join(os.homedir(), ".hermes", "profiles");
 
   public static ensureProfile(profileName: string, systemPrompt: string, tools: string[] = []): string {
-    const targetDir = path.join(this.profilesDir, profileName);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
+    const targetDirs = [
+      path.join(this.profilesDir, profileName),
+      path.join(process.env.LOCALAPPDATA || "", "hermes", "profiles", profileName),
+    ];
 
-    const configPath = path.join(targetDir, "config.yaml");
-    if (!fs.existsSync(configPath)) {
-      const yamlContent = `
+    for (const targetDir of targetDirs) {
+      if (!targetDir) continue;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const configPath = path.join(targetDir, "config.yaml");
+      if (!fs.existsSync(configPath)) {
+        const yamlContent = `
 # Profile: ${profileName} - JURLAY AGENT
 system_prompt: |
   ${systemPrompt.replace(/\n/g, "\n  ")}
 tools:
   allowed: [${tools.map((t) => `"${t}"`).join(", ")}]
 `;
-      fs.writeFileSync(configPath, yamlContent.trim(), "utf-8");
+        fs.writeFileSync(configPath, yamlContent.trim(), "utf-8");
+      }
     }
 
-    return targetDir;
+    return targetDirs[0];
   }
 
   public static async executeSubTask(
@@ -82,32 +90,42 @@ tools:
     };
 
     await logAndEmit("INFO", `🚀 [${employee.name}] Memulai pengerjaan: "${subTask.title}"...`);
-    await logAndEmit("INFO", `Deskripsi Tugas: ${subTask.description}`);
+    await logAndEmit("INFO", `Deskripsi Sub-task: ${subTask.description}`);
 
     const targetDir = projectPath || task.github_project?.local_path || process.cwd();
     await logAndEmit("INFO", `Direktori Kerja: ${targetDir}`);
 
-    // Check Hermes CLI presence
-    const hermesPath = "/Users/apple/.local/bin/hermes";
-    const hasHermes = fs.existsSync(hermesPath);
+    // Dynamic hermes CLI detection across OS
+    const possibleHermesPaths = [
+      path.join(process.env.LOCALAPPDATA || "", "hermes", "hermes-agent", ".hermes", "bin", "hermes.cmd"),
+      path.join(process.env.LOCALAPPDATA || "", "hermes", "hermes-agent", ".hermes", "bin", "hermes.exe"),
+      path.join(process.env.HOME || os.homedir(), ".local", "bin", "hermes"),
+      "/Users/apple/.local/bin/hermes",
+    ];
 
-    if (hasHermes) {
+    let hermesPath = possibleHermesPaths.find((p) => p && fs.existsSync(p)) || "";
+
+    const prompt = `Kamu adalah ${employee.name} (${employee.role}) di JURLAY AGENT.
+Konteks Task Utama: ${task.title}
+Detail Sub-task: ${subTask.title} - ${subTask.description}
+Direktori Kerja: ${targetDir}
+
+Tugasmu:
+1. Analisa kebutuhan teknis spesifik sub-task ini sesuai dengan spesialisasi peranmu (${employee.role}).
+2. Tuliskan urutan langkah eksekusi konkret, nama file yang diubah/dibuat, serta contoh snippet kode/skema teknis yang dihasilkan.
+3. Berikan laporan ringkas hasil akhir pengerjaan.`;
+
+    if (hermesPath) {
       await logAndEmit("INFO", `Menjalankan Hermes Agent Engine (Profile: ${employee.profile_name})...`);
 
       // Ensure profile exists
       this.ensureProfile(employee.profile_name, employee.system_prompt, employee.allowed_tools || []);
 
-      // Prompt for Hermes
-      const prompt = `Lu adalah ${employee.name} (${employee.role}) di JURLAY AGENT.
-Konteks Task: ${task.title}
-Detail Sub-task: ${subTask.title} - ${subTask.description}
-Direktori kerja: ${targetDir}
-Lakukan analisa dan berikan langkah penyelesaian teknis yang presisi.`;
-
       try {
         const hermesProc = spawn(hermesPath, ["--profile", employee.profile_name, "-q", prompt], {
           cwd: targetDir,
           env: process.env,
+          shell: true,
         });
 
         hermesProc.stdout.on("data", async (data: Buffer) => {
@@ -127,32 +145,64 @@ Lakukan analisa dan berikan langkah penyelesaian teknis yang presisi.`;
             employee.status = "IDLE";
             await empRepo.save(employee);
             await logAndEmit("SUCCESS", `✅ [${employee.name}] Selesai mengeksekusi sub-task dengan sukses!`);
+            io.emit("subtask:updated", subTask);
+            io.emit("employee:status_changed", { employeeId: employee.id, status: "IDLE" });
           } else {
-            subTask.status = "DONE"; // mark done for flow
-            await subTaskRepo.save(subTask);
-            employee.status = "IDLE";
-            await empRepo.save(employee);
-            await logAndEmit("SUCCESS", `[${employee.name}] Eksekusi selesai (Exit code: ${code}).`);
+            await logAndEmit("INFO", `⚠️ [${employee.name}] Hermes CLI mengembalikan exit code: ${code}. Beralih otomatis ke AI Engine 9router (antigravity)...`);
+            await this.runAiRouterExecution(io, task, subTask, employee, targetDir, logAndEmit, prompt);
           }
-          io.emit("subtask:updated", subTask);
-          io.emit("employee:status_changed", { employeeId: employee.id, status: "IDLE" });
         });
       } catch (err: any) {
-        await logAndEmit("ERROR", `Error running Hermes: ${err.message}`);
-        subTask.status = "FAILED";
-        await subTaskRepo.save(subTask);
-        employee.status = "IDLE";
-        await empRepo.save(employee);
-        io.emit("subtask:updated", subTask);
-        io.emit("employee:status_changed", { employeeId: employee.id, status: "IDLE" });
+        await logAndEmit("ERROR", `Error running Hermes CLI: ${err.message}`);
+        // Fallback to AiRouterService if CLI fails
+        await this.runAiRouterExecution(io, task, subTask, employee, targetDir, logAndEmit, prompt);
       }
     } else {
-      // Fallback local execution simulator
-      await logAndEmit("COMMAND", `[Executing automated step 1] Reading files in ${targetDir}...`);
-      await new Promise((r) => setTimeout(r, 1200));
-      await logAndEmit("FILE_WRITE", `[File updated] ${subTask.title} processed.`);
+      // Connect to 9router AI Engine (antigravity model)
+      await logAndEmit("INFO", `Menghubungkan ke AI Engine 9router (${employee.name} - Model: antigravity)...`);
+      await this.runAiRouterExecution(io, task, subTask, employee, targetDir, logAndEmit, prompt);
+    }
+  }
+
+  private static async runAiRouterExecution(
+    io: Server,
+    task: Task,
+    subTask: SubTask,
+    employee: Employee,
+    targetDir: string,
+    logAndEmit: (type: LogType, message: string) => Promise<void>,
+    prompt: string
+  ): Promise<void> {
+    const subTaskRepo = AppDataSource.getRepository(SubTask);
+    const empRepo = AppDataSource.getRepository(Employee);
+
+    try {
+      await logAndEmit("COMMAND", `[${employee.name}] Membaca berkas proyek & menganalisis dependensi di ${targetDir}...`);
       await new Promise((r) => setTimeout(r, 1000));
-      await logAndEmit("SUCCESS", `✅ [${employee.name}] Sub-task berhasil diselesaikan!`);
+
+      const aiResponse = await AiRouterService.generateResponse(
+        employee.system_prompt,
+        [],
+        prompt
+      );
+
+      // Split AI response into logical step paragraphs to simulate real console output stream
+      const steps = aiResponse
+        .split("\n\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      for (let i = 0; i < steps.length; i++) {
+        const stepText = steps[i];
+        if (stepText.toLowerCase().includes("code") || stepText.includes("```") || stepText.toLowerCase().includes("file")) {
+          await logAndEmit("FILE_WRITE", `[Eksekusi Berkas/Kode oleh ${employee.name}]:\n${stepText}`);
+        } else {
+          await logAndEmit("COMMAND", `[Langkah ${i + 1}/${steps.length}]:\n${stepText}`);
+        }
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+
+      await logAndEmit("SUCCESS", `✅ [${employee.name}] Sub-task "${subTask.title}" berhasil diselesaikan oleh AI!`);
 
       subTask.status = "DONE";
       await subTaskRepo.save(subTask);
@@ -160,6 +210,38 @@ Lakukan analisa dan berikan langkah penyelesaian teknis yang presisi.`;
       await empRepo.save(employee);
       io.emit("subtask:updated", subTask);
       io.emit("employee:status_changed", { employeeId: employee.id, status: "IDLE" });
+    } catch (err: any) {
+      await logAndEmit("ERROR", `❌ Gagal eksekusi subtask: ${err.message}`);
+      subTask.status = "FAILED";
+      await subTaskRepo.save(subTask);
+      employee.status = "IDLE";
+      await empRepo.save(employee);
+      io.emit("subtask:updated", subTask);
+      io.emit("employee:status_changed", { employeeId: employee.id, status: "IDLE" });
     }
+  }
+
+  public static async applySubTaskCode(
+    io: Server,
+    taskId: string,
+    subTaskId: string
+  ): Promise<void> {
+    const taskRepo = AppDataSource.getRepository(Task);
+    const subTaskRepo = AppDataSource.getRepository(SubTask);
+
+    const task = await taskRepo.findOne({ where: { id: taskId } });
+    const subTask = await subTaskRepo.findOne({
+      where: { id: subTaskId },
+      relations: ["assigned_employee"],
+    });
+
+    if (!task || !subTask) return;
+
+    // Reset status to TODO if DONE so executeSubTask can re-run
+    subTask.status = "TODO";
+    await subTaskRepo.save(subTask);
+
+    // Trigger full AI worker execution (Hermes / 9router) with live IN_PROGRESS status
+    await this.executeSubTask(io, taskId, subTaskId, subTask.assigned_employee_id);
   }
 }

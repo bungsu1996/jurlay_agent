@@ -20,7 +20,7 @@ export const api = {
   // Tasks
   getTasks: () => fetchApi<any[]>("/tasks"),
   getTaskById: (id: string) => fetchApi<any>(`/tasks/${id}`),
-  createTask: (data: { title: string; description: string; priority?: string; github_project_id?: string }) =>
+  createTask: (data: { title: string; description: string; priority?: string; github_project_id?: string; project_root_path?: string; assigned_employee_ids?: string[] }) =>
     fetchApi<any>("/tasks", { method: "POST", body: JSON.stringify(data) }),
   updateTaskStatus: (id: string, status: string) =>
     fetchApi<any>(`/tasks/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -28,6 +28,14 @@ export const api = {
   approvePlan: (id: string) => fetchApi<any>(`/tasks/${id}/approve-plan`, { method: "POST" }),
   executeSubTask: (taskId: string, subTaskId: string) =>
     fetchApi<any>(`/tasks/${taskId}/subtasks/${subTaskId}/execute`, { method: "POST" }),
+  applySubTaskCode: (taskId: string, subTaskId: string) =>
+    fetchApi<any>(`/tasks/${taskId}/subtasks/${subTaskId}/apply-code`, { method: "POST" }),
+  createSubTask: (taskId: string, data: { title: string; description?: string; assigned_employee_id: string; status?: string; order_index?: number }) =>
+    fetchApi<any>(`/tasks/${taskId}/subtasks`, { method: "POST", body: JSON.stringify(data) }),
+  updateSubTask: (taskId: string, subTaskId: string, data: any) =>
+    fetchApi<any>(`/tasks/${taskId}/subtasks/${subTaskId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteSubTask: (taskId: string, subTaskId: string) =>
+    fetchApi<any>(`/tasks/${taskId}/subtasks/${subTaskId}`, { method: "DELETE" }),
   getTaskLogs: (id: string) => fetchApi<any[]>(`/tasks/${id}/logs`),
 
   // Employees
@@ -44,6 +52,8 @@ export const api = {
     fetchApi<any>(`/meetings/${meetingId}/message`, { method: "POST", body: JSON.stringify({ content }) }),
   triggerMeetingRound: (meetingId: string) =>
     fetchApi<any>(`/meetings/${meetingId}/trigger-round`, { method: "POST" }),
+  createDiscussion: (data: { title: string; description?: string; assigned_employee_ids?: string[] }) =>
+    fetchApi<any>("/discussions", { method: "POST", body: JSON.stringify(data) }),
 
   // Projects
   getProjects: () => fetchApi<any[]>("/projects"),

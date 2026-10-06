@@ -7,6 +7,7 @@ import {
   Sparkles,
   Layers,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
 import { Modal } from "../components/Modal";
@@ -20,6 +21,7 @@ interface TaskBoardPageProps {
   employees: any[];
   onStartMeeting: (taskId: string) => Promise<void>;
   onApprovePlan: (taskId: string) => Promise<void>;
+  onUpdateTaskStatus?: (taskId: string, status: string) => Promise<void>;
   onNavigate: (tab: NavTab) => void;
   onSelectTaskForMeeting: (taskId: string) => void;
   onSelectTaskForProgress: (taskId: string) => void;
@@ -32,6 +34,7 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
   employees,
   onStartMeeting,
   onApprovePlan,
+  onUpdateTaskStatus,
   onNavigate,
   onSelectTaskForMeeting,
   onSelectTaskForProgress,
@@ -73,6 +76,20 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
       setIsDetailOpen(false);
       onSelectTaskForProgress(taskId);
       onNavigate("progress");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleMarkDoneClick = async (taskId: string) => {
+    try {
+      setLoadingAction(true);
+      if (onUpdateTaskStatus) {
+        await onUpdateTaskStatus(taskId, "DONE");
+      }
+      setIsDetailOpen(false);
+    } catch (err) {
+      console.error("Gagal mengubah status ke DONE:", err);
     } finally {
       setLoadingAction(false);
     }
@@ -275,7 +292,7 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
                 <button
                   disabled={loadingAction}
                   onClick={() => handleStartMeetingClick(selectedTask.id)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-md shadow-red-600/30"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-md shadow-red-600/30 cursor-pointer"
                 >
                   <MessagesSquare className="w-3.5 h-3.5" />
                   <span>{loadingAction ? "Memulai..." : "Mulai Rapat Tim di Ruang Diskusi"}</span>
@@ -290,7 +307,7 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
                       onSelectTaskForMeeting(selectedTask.id);
                       onNavigate("meetings");
                     }}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs border border-zinc-200 dark:border-zinc-700 transition-all"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs border border-zinc-200 dark:border-zinc-700 transition-all cursor-pointer"
                   >
                     <MessagesSquare className="w-3.5 h-3.5 text-red-600" />
                     <span>Masuk ke Ruang Rapat</span>
@@ -299,7 +316,7 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
                   <button
                     disabled={loadingAction}
                     onClick={() => handleApprovePlanClick(selectedTask.id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-md shadow-emerald-600/30"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5" />
                     <span>{loadingAction ? "Memproses..." : "Setujui Rencana & Gas Eksekusi"}</span>
@@ -314,10 +331,26 @@ export const TaskBoardPage: React.FC<TaskBoardPageProps> = ({
                     onSelectTaskForProgress(selectedTask.id);
                     onNavigate("progress");
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 font-bold text-xs transition-all shadow-md"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 font-bold text-xs transition-all shadow-md cursor-pointer"
                 >
                   <span>Pantau Progres Eksekusi</span>
                   <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {selectedTask.status !== "DONE" && (
+                <button
+                  disabled={loadingAction}
+                  onClick={() => handleMarkDoneClick(selectedTask.id)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-md shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
+                  title="Langsung tandai tugas/diskusi ini selesai"
+                >
+                  {loadingAction ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>{loadingAction ? "Memproses..." : "Tandai Selesai (Done)"}</span>
                 </button>
               )}
             </div>

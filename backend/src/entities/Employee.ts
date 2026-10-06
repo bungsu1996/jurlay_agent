@@ -3,7 +3,7 @@ import { Task } from "./Task";
 import { SubTask } from "./SubTask";
 import { TaskLog } from "./TaskLog";
 
-export type EmployeeRole = "PM" | "FRONTEND" | "BACKEND" | "QA" | "DEVOPS" | "RESEARCHER" | "CUSTOM";
+export type EmployeeRole = "PM" | "FRONTEND" | "BACKEND" | "QA" | "DEVOPS" | "RESEARCHER" | "PLANNER" | "CODE_REVIEWER" | "CUSTOM";
 export type EmployeeStatus = "IDLE" | "MEETING" | "WORKING" | "BLOCKED";
 
 @Entity("employees")
@@ -31,6 +31,9 @@ export class Employee {
 
   @Column({ type: "varchar", length: 20, default: "IDLE" })
   status!: EmployeeStatus;
+
+  @Column({ type: "boolean", default: true })
+  is_online!: boolean;
 
   @Column({ type: "boolean", default: true })
   is_active!: boolean;
