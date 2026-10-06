@@ -141,13 +141,13 @@ tools:
   ): Promise<CommandResult> {
     const cwd = this.sanitizePath(rawCwd);
     const hermesBin = this.getHermesCliPath();
-    const isWindows = process.platform === "win32";
+    const cleanProfile = profileName.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
     // Combine system prompt and user task prompt for full context
-    const fullPrompt = `${systemPrompt}\n\n[INSTRUKSI UTAMA]: ${taskPrompt}`;
+    const fullPrompt = `${systemPrompt}\n\n[INSTRUKSI PAK NYONS (CEO)]: ${taskPrompt}`;
     const escapedPrompt = fullPrompt.replace(/"/g, '\\"').replace(/\n/g, ' ');
 
-    const command = `${hermesBin} --in "${cwd}" -z "${escapedPrompt}"`;
+    const command = `${hermesBin} -p ${cleanProfile} --in "${cwd}" -z "${escapedPrompt}"`;
     return this.executeCommand(cwd, command, 120000);
   }
 }

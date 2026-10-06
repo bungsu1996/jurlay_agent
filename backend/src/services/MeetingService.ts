@@ -124,7 +124,26 @@ ${rolePrompt}
 
 Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunakan Bahasa Indonesia yang natural, santai tapi profesional, dan berikan poin-poin teknis yang spesifik dan langsung menyambung dengan isi deskripsi tugas dari CEO di atas.`;
 
-        const response = await AiRouterService.generateResponse(fullPrompt, historyMsgs, rolePrompt);
+        const roleProfileMap: Record<string, string> = {
+          PM: "domba_pm",
+          FRONTEND: "hayam_frontend",
+          BACKEND: "sapi_backend",
+          PLANNER: "elang_planner",
+          CODE_REVIEWER: "gajah_reviewer",
+          QA: "tirex_qa",
+          DEVOPS: "kuya_devops",
+        };
+        const profileName = roleProfileMap[emp.role] || "default";
+
+        console.log(`[MeetingService:Kickoff] Spawning Hermes Agent CLI for ${emp.name} (Profile: ${profileName}) in "${taskRootPath}"...`);
+        const agentRes = await HermesBridgeService.runHermesAgentTask(
+          profileName,
+          fullPrompt,
+          rolePrompt,
+          taskRootPath
+        );
+
+        const response = agentRes.stdout.trim() || agentRes.stderr.trim() || `Siap Pak CEO! Saya ${emp.name} (${emp.role}) siap mengeksekusi arahan rapat.`;
         return response;
       } catch (e: any) {
         console.error(`Gagal generate AI message untuk ${emp.name}:`, e);
@@ -470,7 +489,26 @@ ${fileInspectionContext}
 1. ${detectedCmd ? `Langsung beritahu Pak Nyons hasil eksekusi terminal real dari perintah "${detectedCmd}" di atas. Jelaskan apakah ada error atau berhasil berdasarkan STDOUT & STDERR log real di atas.` : `Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.`}
 2. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia tanpa menyuruh Pak Nyons melakukan hal teknis manual!`;
 
-          const rawResponseText = await AiRouterService.generateResponse(prompt, history, content);
+          const roleProfileMap: Record<string, string> = {
+            PM: "domba_pm",
+            FRONTEND: "hayam_frontend",
+            BACKEND: "sapi_backend",
+            PLANNER: "elang_planner",
+            CODE_REVIEWER: "gajah_reviewer",
+            QA: "tirex_qa",
+            DEVOPS: "kuya_devops",
+          };
+          const profileName = roleProfileMap[respondingEmp.role] || "default";
+
+          console.log(`[MeetingService] Spawning Hermes Agent CLI for ${respondingEmp.name} (Profile: ${profileName}) in "${taskRootPath}"...`);
+          const agentRes = await HermesBridgeService.runHermesAgentTask(
+            profileName,
+            prompt,
+            content,
+            taskRootPath
+          );
+
+          const rawResponseText = agentRes.stdout.trim() || agentRes.stderr.trim() || "Diskusi rapat telah diproses oleh Hermes Agent.";
 
           // Auto-write files to disk if AI outputted code blocks with file targets
           const { updatedText: responseText } = FileSystemService.processAndWriteFilesFromAiResponse(

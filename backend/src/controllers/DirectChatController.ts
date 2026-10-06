@@ -109,33 +109,36 @@ ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error)"}
 `;
       }
 
-      // Auto-scan directory files for 1-on-1 chat context
-      const dirScanContext = FileSystemService.scanDirectory(sanitizedCwd);
-      const fileInspectionContext = `\n[HASIL MEMBACA REAL STRUKTUR DIREKTORI DISK LOKAL (${sanitizedCwd})]:\n${dirScanContext}\n`;
+      // Map employee role to Hermes Agent profile
+      const roleProfileMap: Record<string, string> = {
+        PM: "domba_pm",
+        FRONTEND: "hayam_frontend",
+        BACKEND: "sapi_backend",
+        PLANNER: "elang_planner",
+        CODE_REVIEWER: "gajah_reviewer",
+        QA: "tirex_qa",
+        DEVOPS: "kuya_devops",
+      };
+      const profileName = roleProfileMap[employee.role] || "default";
 
-      // 4. Eksekusi AI Response via Hermes Engine System Prompt
+      // 4. Eksekusi Full Hermes Agent CLI Task Loop (Otonom & Tool Calling Real)
       (async () => {
         try {
-          const systemPromptWithRules = `${employee.system_prompt}
+          const sysPrompt = `${employee.system_prompt}\n- Path Kerja Saat Ini: "${sanitizedCwd}"`;
 
-[INFORMASI PENTING UNTUK CHAT 1-ON-1 WITH HERMES ENGINE]:
-- Kamu adalah ${employee.name} (${employee.role}), karyawan AI profesional Pak Nyons.
-- Path Kerja Saat Ini: "${sanitizedCwd}"
-- ANALISIS CERMAT & TELITI SEJAK PERTAMA KALI: Bedah masalah/error hingga ke akar-akarnya secara cermat sejak giliran pertama.
-- DILARANG SPAM KODE PANJANG INLINE: Jika meracik file kode baru/edit, sertakan baris header file (\`Target lokasi file: ${sanitizedCwd}\\nama_file.ext\`) agar sistem menulisnya di background di disk Pak Nyons.
-- DILARANG MENYURUH PAK NYONS MANUALLY: JANGAN PERNAH menyuruh Pak Nyons menyimpan file, menjalankan terminal, atau mencoba ulang secara manual! Semuanya sudah otomatis!
-- DILARANG HALUSINASI: Berikan jawaban berdasarkan data real dari disk lokal berikut:
-${fileInspectionContext}
-${terminalLogContext}`;
-
-          const rawAiResponseText = await AiRouterService.generateResponse(
-            systemPromptWithRules,
-            recentHistory.map((m) => ({ sender: m.sender, content: m.content })),
-            content.trim()
+          console.log(`[DirectChat] Spawning Hermes Agent CLI for ${employee.name} (Profile: ${profileName}) in "${sanitizedCwd}"...`);
+          const agentRes = await HermesBridgeService.runHermesAgentTask(
+            profileName,
+            sysPrompt,
+            content.trim(),
+            sanitizedCwd
           );
 
+          let rawText = agentRes.stdout.trim() || agentRes.stderr.trim() || "Perintah telah diselesaikan oleh Hermes Agent.";
+
+          // Auto-write files to disk if AI outputted code blocks with file targets
           const { updatedText: aiResponseText } = FileSystemService.processAndWriteFilesFromAiResponse(
-            rawAiResponseText,
+            rawText,
             sanitizedCwd
           );
 
