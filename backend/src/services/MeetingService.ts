@@ -452,13 +452,17 @@ ${fileInspectionContext}
 - Sistem Jurlay Agent akan OTOMATIS SECARA REAL MEMBUATKAN DAN MENULISKAN FILE FISIK TERSEBUT DI DISK LAPTOP PAK NYONS DI BACKGROUND!
 - Di pesan chat, BERIKAN PENJELASAN RINGKAS DAN STRATEGIS SAJA mengenai poin-poin perubahan atau fitur yang kamu buat/perbarui. JANGAN SPAM KODE PANJANG DI CHAT!
 
+[ATURAN PENTING MERESPON PAK NYONS (CEO) - WAJIB DITURUTI]:
+1. ANALISIS CERMAT & TELITI SEJAK PERTAMA KALI: Bedah & analisis masalah/error hingga ke akar-akarnya secara cermat & teliti sejak giliran pertama. Antisipasi potensi edge-cases (seperti duplicate column, syntax error, missing dependency) secara proaktif.
+2. DILARANG MENYURUH PAK NYONS SECARA MANUAL: JANGAN PERNAH menyuruh Pak Nyons menyimpan file, mengeksekusi terminal, atau ngetes ulang ("Simpan perubahan...", "Jalankan kembali npm run...", "Kabari kalau udah dicoba..."). Semua eksekusi & penulisan file sudah otomatis di background!
+3. JANGAN SPAM KODE PANJANG & PETUNJUK MANUA DI CHAT: Cukup sediakan header lokasi file untuk background writer. Di pesan chat, berikan konfirmasi RINGKAS, DEFINITIF, DAN TO-THE-POINT bahwa kodenya sudah dianalisis dan diperbarui di disk PC Pak Nyons.
+
 [PESAN TERBARU PAK NYONS (CEO) DI RAPAT]:
 "${content}"
 
 [INSTRUKSI PENGERJAAN RESPON]:
 1. ${detectedCmd ? `Langsung beritahu Pak Nyons hasil eksekusi terminal real dari perintah "${detectedCmd}" di atas. Jelaskan apakah ada error atau berhasil berdasarkan STDOUT & STDERR log real di atas.` : `Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.`}
-2. Jika diminta membuat file, sediakan kodenya lengkap dengan header target lokasi file agar sistem dapat langsung menulisnya ke disk.
-3. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
+2. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia tanpa menyuruh Pak Nyons melakukan hal teknis manual!`;
 
           const rawResponseText = await AiRouterService.generateResponse(prompt, history, content);
 
