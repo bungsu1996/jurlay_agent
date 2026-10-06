@@ -124,9 +124,15 @@ export class FileSystemService {
       writtenFiles.push(result);
     }
 
-    // Append notification badges if any files were written
+    // Clean up full code blocks from display text if files were written, to keep chat clean
     let updatedText = text;
     if (writtenFiles.length > 0) {
+      // Replace code blocks in display text with a clean background write badge
+      updatedText = updatedText.replace(
+        /```[\w]*\n([\s\S]*?)```/g,
+        "\n*(⚡ Kode telah ditulis & diperbarui secara otomatis ke file fisik di background)*\n"
+      );
+
       const successBadges = writtenFiles
         .filter((wf) => wf.success)
         .map((wf) => `📁 \`${wf.path}\``)
