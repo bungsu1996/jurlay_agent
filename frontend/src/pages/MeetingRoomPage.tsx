@@ -274,21 +274,6 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
     }
   };
 
-  if (!currentTask) {
-    return (
-      <div className="p-8 text-center rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 shadow-sm space-y-3">
-        <p>Belum ada tugas atau ruang diskusi aktif.</p>
-        <button
-          onClick={() => setIsCreateDiscOpen(true)}
-          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-md"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Buat Diskusi / Obrolan Baru</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="h-[calc(100vh-5.5rem)] sm:h-[calc(100vh-6rem)] flex flex-col gap-2.5 overflow-hidden">
       {/* Panduan Halaman Lengkap */}
@@ -296,6 +281,19 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
         <PageDocBanner doc={pageDocs.meetings} />
       </div>
 
+      {!currentTask ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 shadow-sm space-y-3">
+          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Belum ada tugas atau ruang diskusi aktif.</p>
+          <button
+            onClick={() => setIsCreateDiscOpen(true)}
+            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Buat Diskusi / Obrolan Baru</span>
+          </button>
+        </div>
+      ) : (
+        <>
       {/* Top Controls Bar */}
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
         {/* Task / Discussion Selector */}
@@ -543,6 +541,8 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
           💡 Tips: Tekan <kbd className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-[9px] font-mono">Shift + Enter</kbd> untuk membuat paragraf baru.
         </span>
       </form>
+      </>
+      )}
 
       {/* Modal Buat Diskusi Baru */}
       <Modal
