@@ -70,10 +70,10 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
   const currentTask = activeMeetingTasks.find((t) => t.id === selectedTaskId) || activeMeetingTasks[0];
 
   useEffect(() => {
-    if (currentTask && currentTask.id !== selectedTaskId) {
-      onSelectTask(currentTask.id);
+    if (!selectedTaskId && activeMeetingTasks.length > 0) {
+      onSelectTask(activeMeetingTasks[0].id);
     }
-  }, [tasks]);
+  }, [tasks, selectedTaskId]);
 
   useEffect(() => {
     if (!currentTask) return;
@@ -230,7 +230,7 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
 
     try {
       setIsCreatingDisc(true);
-      const createdTask = await api.createDiscussion({
+      const res = await api.createDiscussion({
         title: discTitle.trim(),
         description: discDescription.trim() || undefined,
         assigned_employee_ids: selectedEmpIds.length > 0 ? selectedEmpIds : undefined,
@@ -245,8 +245,9 @@ export const MeetingRoomPage: React.FC<MeetingRoomPageProps> = ({
         await onRefreshTasks();
       }
 
-      if (createdTask && createdTask.id) {
-        onSelectTask(createdTask.id);
+      const targetId = res?.id || res?.data?.id;
+      if (targetId) {
+        onSelectTask(targetId);
       }
     } catch (err: any) {
       setErrorMessage("Gagal membuat diskusi baru: " + (err.message || err.toString()));
