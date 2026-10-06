@@ -7,6 +7,7 @@ import { SubTask } from "../entities/SubTask";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { AiRouterService } from "./AiRouterService";
+import { TerminalService } from "./TerminalService";
 
 export class MeetingService {
   public static async runMeetingDiscussion(io: Server, meetingId: string): Promise<void> {
@@ -377,7 +378,39 @@ Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunaka
 
           const taskTitle = meeting.task?.title || "Diskusi";
           const taskDesc = meeting.task?.description || meeting.task?.title || "Tidak ada deskripsi";
-          const taskRootPath = meeting.task?.project_root_path || "Belum diset (Dapat berupa direktori lokal PC/Laptop Pak Nyons)";
+          const taskRootPath = meeting.task?.project_root_path || process.cwd();
+
+          // Auto-extract command if CEO asks to run/execute something
+          const extractCommandToRun = (text: string): string | null => {
+            const directMatch = text.match(/(npm\s+(?:run\s+[\w:-]+|install|i|test|build|start|migrate)|npx\s+[\w:-]+|git\s+[\w-]+|node\s+[^\s?]+|python\s+[^\s?]+|dir|ls)/i);
+            if (directMatch) return directMatch[0].trim();
+            const intentMatch = text.match(/(?:jalankan|run|eksekusi|coba\s+lu\s+jalankan|coba\s+jalankan|tes)\s+([a-zA-Z0-9_\-\.\:\/\\\s]+?)(?=\s*(?:ada error|di path|bro|pak|apakah|\?|$))/i);
+            if (intentMatch && intentMatch[1]) {
+              const cmd = intentMatch[1].trim();
+              if (cmd.length > 2 && !cmd.includes("deskripsi") && !cmd.includes("path")) return cmd;
+            }
+            return null;
+          };
+
+          const detectedCmd = extractCommandToRun(content);
+          let terminalLogContext = "";
+
+          if (detectedCmd) {
+            console.log(`[MeetingService] Executing real command "${detectedCmd}" in "${taskRootPath}" for CEO request...`);
+            const execRes = await TerminalService.executeCommand(taskRootPath, detectedCmd);
+            terminalLogContext = `
+[HASIL EKSEKUSI REAL TERMINAL LOKAL PC PAK NYONS]:
+- Perintah yang Dijalankan: "${detectedCmd}"
+- Path Direktori Pengerjaan: "${taskRootPath}"
+- Status Exit Code: ${execRes.exitCode} (${execRes.success ? "SUKSES / 0 ERROR" : "TERJADI ERROR"})
+- Console Output (STDOUT):
+${execRes.stdout ? execRes.stdout.substring(0, 3000) : "(Kosong)"}
+- Error Log Output (STDERR):
+${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error stderr)"}
+
+(PENTING: PERINTAH TERSEBUT SUDAH SELESAI DIJALANKAN LANSUNG DI TERMINAL LOKAL. GUNAKAN DATA LOG REAL DI ATAS DALAM MEREAPON PAK NYONS!)
+`;
+          }
 
           const prompt = `${respondingEmp.system_prompt}
 
@@ -388,18 +421,18 @@ Kamu adalah ${respondingEmp.name} (${respondingEmp.role}) dalam ruang rapat tim 
 - Root Path Direktori Project: "${taskRootPath}"
 - Judul Referensi: "${taskTitle}"
 
+${terminalLogContext}
+
 [INFORMASI PENTING KAPABILITAS TERMINAL & PATH LOKAL]:
-- Kamu MEMAHAMI dan MENGENALI lokasi direktori project lokal Pak Nyons (${taskRootPath}).
-- JANGAN PERNAH MENJAWAB "tidak punya akses direct terminal/shell execution" atau "tidak bisa membaca direktori/path lokal".
-- Sebagai AI Employee di Jurlay Agent, kamu dapat membaca path lokal, menganalisis struktur berkasnya, dan siap menyusun/menjalankan perintah terminal (seperti npm run migrate, git, build, test, dsb) di direktori project tersebut!
+- Sebagai AI Employee di Jurlay Agent, kamu DAPAT membaca path lokal, melihat output terminal, dan mengeksekusi perintah terminal secara real.
+- JANGAN PERNAH menyuruh Pak Nyons mengeksekusi sendiri command tersebut atau memberikan jawaban teoritis umum ("potensi error"), KARENA JIKA ADA COMMAND YANG DIMINTA, COMMAND SUDAH SECARA REAL DIJALANKAN LOKAL DAN HASIL LOG TERMINAL-NYA SUDAH DISEDIAKAN DI ATAS!
 
 [PESAN TERBARU PAK NYONS (CEO) DI RAPAT]:
 "${content}"
 
 [INSTRUKSI PENGERJAAN RESPON]:
-1. Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.
-2. Jika Pak Nyons memberikan/menanyakan path direktori (seperti C:\\WorkSpace\\...) atau meminta mengeksekusi perintah di direktori lokal, jawab dengan penuh percaya diri bahwa kamu mengenali direktori "${taskRootPath}", paham lokasinya, dan siap memproses perintah/memberikan analisis teknisnya secara mendalam.
-3. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
+1. ${detectedCmd ? `Langsung beritahu Pak Nyons hasil eksekusi terminal real dari perintah "${detectedCmd}" di atas. Jelaskan apakah ada error atau berhasil berdasarkan STDOUT & STDERR log real di atas. Jika ada error, berikan analisis teknis spesifik dan perbaikan kodenya.` : `Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.`}
+2. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
 
           const responseText = await AiRouterService.generateResponse(prompt, history, content);
 

@@ -1,4 +1,5 @@
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import { spawn, exec, ChildProcessWithoutNullStreams } from "child_process";
+import fs from "fs";
 import { Server, Socket } from "socket.io";
 
 interface TerminalSession {
@@ -120,5 +121,37 @@ export class TerminalService {
       name: s.name,
       cwd: s.cwd,
     }));
+  }
+
+  public static async executeCommand(
+    cwd: string,
+    command: string,
+    timeoutMs: number = 30000
+  ): Promise<{ stdout: string; stderr: string; exitCode: number; success: boolean }> {
+    return new Promise((resolve) => {
+      let validCwd = cwd;
+      if (!cwd || !fs.existsSync(cwd)) {
+        validCwd = process.cwd();
+      }
+
+      const options = {
+        cwd: validCwd,
+        timeout: timeoutMs,
+        maxBuffer: 1024 * 1024 * 5,
+        env: { ...process.env },
+      };
+
+      exec(command, options, (error, stdout, stderr) => {
+        const outStr = (stdout || "").toString();
+        const errStr = (stderr || "").toString();
+        const exitCode = error && typeof error.code === "number" ? error.code : (error ? 1 : 0);
+        resolve({
+          stdout: outStr,
+          stderr: errStr || (error ? error.message : ""),
+          exitCode,
+          success: exitCode === 0,
+        });
+      });
+    });
   }
 }
