@@ -6,8 +6,10 @@ import { Task } from "../entities/Task";
 import { SubTask } from "../entities/SubTask";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
+import path from "path";
 import { AiRouterService } from "./AiRouterService";
 import { TerminalService } from "./TerminalService";
+import { FileSystemService } from "./FileSystemService";
 
 export class MeetingService {
   public static async runMeetingDiscussion(io: Server, meetingId: string): Promise<void> {
@@ -412,6 +414,24 @@ ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error stderr)
 `;
           }
 
+          // Auto-detect file/folder inspection requests from CEO
+          let fileInspectionContext = "";
+          const lowerContent = content.toLowerCase();
+          if (lowerContent.includes("baca file") || lowerContent.includes("isi file") || lowerContent.includes("cek file") || lowerContent.includes("lihat file")) {
+            const filePathMatch = content.match(/([a-zA-Z]:\\[^\s"]+\.[a-zA-Z0-9]+|[a-zA-Z]:\/[^\s"]+\.[a-zA-Z0-9]+|[a-zA-Z0-9_\-\.\:\/\\]+\.[a-zA-Z0-9]+)/);
+            if (filePathMatch) {
+              let targetFile = filePathMatch[0];
+              if (!path.isAbsolute(targetFile) && taskRootPath) {
+                targetFile = path.join(taskRootPath, targetFile);
+              }
+              const fileContent = FileSystemService.readFileContent(targetFile);
+              fileInspectionContext = `\n[HASIL MEMBACA FILE DARI DISK LOKAL (${targetFile})]:\n${fileContent}\n`;
+            }
+          } else if (lowerContent.includes("baca folder") || lowerContent.includes("cek folder") || lowerContent.includes("lihat folder") || lowerContent.includes("isi folder") || lowerContent.includes("akses folder")) {
+            const dirContent = FileSystemService.scanDirectory(taskRootPath);
+            fileInspectionContext = `\n[HASIL MEMBACA STRUKTUR DIREKTORI DARI DISK LOKAL (${taskRootPath})]:\n${dirContent}\n`;
+          }
+
           const prompt = `${respondingEmp.system_prompt}
 
 Kamu adalah ${respondingEmp.name} (${respondingEmp.role}) dalam ruang rapat tim AI Jurlay Agent.
@@ -422,19 +442,30 @@ Kamu adalah ${respondingEmp.name} (${respondingEmp.role}) dalam ruang rapat tim 
 - Judul Referensi: "${taskTitle}"
 
 ${terminalLogContext}
+${fileInspectionContext}
 
-[INFORMASI PENTING KAPABILITAS TERMINAL & PATH LOKAL]:
-- Sebagai AI Employee di Jurlay Agent, kamu DAPAT membaca path lokal, melihat output terminal, dan mengeksekusi perintah terminal secara real.
-- JANGAN PERNAH menyuruh Pak Nyons mengeksekusi sendiri command tersebut atau memberikan jawaban teoritis umum ("potensi error"), KARENA JIKA ADA COMMAND YANG DIMINTA, COMMAND SUDAH SECARA REAL DIJALANKAN LOKAL DAN HASIL LOG TERMINAL-NYA SUDAH DISEDIAKAN DI ATAS!
+[INFORMASI PENTING KAPABILITAS PEMBUATAN FILE FISIK & TERMINAL]:
+- Sebagai AI Employee di Jurlay Agent, kamu MEMILIKI HAK DAN KAPABILITAS UNTUK OTOMATIS MEMBUAT/MENULIS FILE FISIK DI DISK PAK NYONS!
+- Jika Pak Nyons meminta membuat/menulis file (atau kamu membuatkan kode file baru), SELALU sertakan baris header sebelum kode block berupa:
+  \`Target lokasi file: ${taskRootPath}\\path\\ke\\nama_file.ext\` (atau \`// FILE_PATH: ${taskRootPath}\\path\\ke\\nama_file.ext\`)
+- Sistem Jurlay Agent akan OTOMATIS SECARA REAL MEMBUATKAN DAN MENULISKAN FILE FISIK TERSEBUT DI DISK LAPTOP PAK NYONS!
+- JANGAN PERNAH menyuruh Pak Nyons menyalin kode secara manual, karena sistem akan menulis file tersebut secara otomatis!
 
 [PESAN TERBARU PAK NYONS (CEO) DI RAPAT]:
 "${content}"
 
 [INSTRUKSI PENGERJAAN RESPON]:
-1. ${detectedCmd ? `Langsung beritahu Pak Nyons hasil eksekusi terminal real dari perintah "${detectedCmd}" di atas. Jelaskan apakah ada error atau berhasil berdasarkan STDOUT & STDERR log real di atas. Jika ada error, berikan analisis teknis spesifik dan perbaikan kodenya.` : `Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.`}
-2. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
+1. ${detectedCmd ? `Langsung beritahu Pak Nyons hasil eksekusi terminal real dari perintah "${detectedCmd}" di atas. Jelaskan apakah ada error atau berhasil berdasarkan STDOUT & STDERR log real di atas.` : `Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.`}
+2. Jika diminta membuat file, sediakan kodenya lengkap dengan header target lokasi file agar sistem dapat langsung menulisnya ke disk.
+3. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
 
-          const responseText = await AiRouterService.generateResponse(prompt, history, content);
+          const rawResponseText = await AiRouterService.generateResponse(prompt, history, content);
+
+          // Auto-write files to disk if AI outputted code blocks with file targets
+          const { updatedText: responseText } = FileSystemService.processAndWriteFilesFromAiResponse(
+            rawResponseText,
+            taskRootPath
+          );
 
           const stopTypingData = { employeeName: respondingEmp.name, isTyping: false };
           io.emit(`meeting:typing:${meetingId}`, stopTypingData);

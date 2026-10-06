@@ -3,6 +3,7 @@ import { AppDataSource } from "../config/database";
 import { Employee } from "../entities/Employee";
 import { DirectMessage } from "../entities/DirectMessage";
 import { AiRouterService } from "../services/AiRouterService";
+import { FileSystemService } from "../services/FileSystemService";
 import { v4 as uuidv4 } from "uuid";
 import { Server } from "socket.io";
 
@@ -71,11 +72,13 @@ export class DirectChatController {
       // 3. Panggil 9router model combogravuty secara asinkron
       (async () => {
         try {
-          const aiResponseText = await AiRouterService.generateResponse(
+          const rawAiResponseText = await AiRouterService.generateResponse(
             employee.system_prompt,
             recentHistory.map((m) => ({ sender: m.sender, content: m.content })),
             content.trim()
           );
+
+          const { updatedText: aiResponseText } = FileSystemService.processAndWriteFilesFromAiResponse(rawAiResponseText);
 
           const aiMessage = msgRepo.create({
             id: uuidv4(),
