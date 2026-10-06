@@ -130,7 +130,7 @@ tools:
   }
 
   /**
-   * Runs an autonomous task prompt via Hermes Agent CLI with employee profile
+   * Runs an autonomous task prompt via Hermes Agent CLI with real tool-calling & file scanning
    */
   public static async runHermesAgentTask(
     profileName: string,
@@ -140,49 +140,14 @@ tools:
     onLog?: (logType: "STDOUT" | "STDERR", text: string) => void
   ): Promise<CommandResult> {
     const cwd = this.sanitizePath(rawCwd);
-    this.ensureProfile(profileName, systemPrompt);
     const hermesBin = this.getHermesCliPath();
+    const isWindows = process.platform === "win32";
 
-    return new Promise((resolve) => {
-      let stdout = "";
-      let stderr = "";
+    // Combine system prompt and user task prompt for full context
+    const fullPrompt = `${systemPrompt}\n\n[INSTRUKSI UTAMA]: ${taskPrompt}`;
+    const escapedPrompt = fullPrompt.replace(/"/g, '\\"').replace(/\n/g, ' ');
 
-      const child = spawn(hermesBin, ["--profile", profileName, "-q", taskPrompt], {
-        cwd,
-        env: { ...process.env, CI: "true" },
-        shell: true,
-      });
-
-      child.stdout.on("data", (data: Buffer) => {
-        const text = data.toString("utf-8");
-        stdout += text;
-        if (onLog) onLog("STDOUT", text);
-      });
-
-      child.stderr.on("data", (data: Buffer) => {
-        const text = data.toString("utf-8");
-        stderr += text;
-        if (onLog) onLog("STDERR", text);
-      });
-
-      child.on("close", (code) => {
-        const exitCode = code ?? 0;
-        resolve({
-          stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          exitCode,
-          success: exitCode === 0,
-        });
-      });
-
-      child.on("error", (err) => {
-        resolve({
-          stdout,
-          stderr: err.message,
-          exitCode: 1,
-          success: false,
-        });
-      });
-    });
+    const command = `${hermesBin} --in "${cwd}" -z "${escapedPrompt}"`;
+    return this.executeCommand(cwd, command, 120000);
   }
 }

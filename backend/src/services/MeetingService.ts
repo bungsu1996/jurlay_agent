@@ -388,7 +388,7 @@ Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunaka
           const extractCommandToRun = (text: string): string | null => {
             const directMatch = text.match(/(npm\s+(?:run\s+[\w:-]+|install|i|test|build|start|migrate)|npx\s+[\w:-]+|git\s+[\w-]+|node\s+[^\s?]+|python\s+[^\s?]+|dir|ls)/i);
             if (directMatch) return directMatch[0].trim();
-            const intentMatch = text.match(/(?:jalankan|run|eksekusi|coba\s+lu\s+jalankan|coba\s+jalankan|tes)\s+([a-zA-Z0-9_\-\.\:\/\\\s]+?)(?=\s*(?:ada error|di path|bro|pak|apakah|\?|$))/i);
+            const intentMatch = text.match(/(?:jalankan|run|eksekusi|coba\s+(?:lu\s+)?jalankan|tes|skrip|script|migrasi)\s*([a-zA-Z0-9_\-\.\:\/\\\s]*)/i);
             if (intentMatch && intentMatch[1]) {
               const cmd = intentMatch[1].trim();
               if (cmd.length > 2 && !cmd.includes("deskripsi") && !cmd.includes("path")) return cmd;
@@ -403,7 +403,7 @@ Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunaka
             console.log(`[MeetingService] Executing command via Hermes Bridge: "${detectedCmd}" in sanitized path "${taskRootPath}" for CEO...`);
             const execRes = await HermesBridgeService.executeCommand(taskRootPath, detectedCmd);
             terminalLogContext = `
-[HASIL EKSEKUSI REAL TERMINAL LOKAL PC PAK NYONS]:
+[HASIL EKSEKUSI REAL TERMINAL LOKAL PC PAK NYONS VIA HERMES BRIDGE]:
 - Perintah yang Dijalankan: "${detectedCmd}"
 - Path Direktori Pengerjaan: "${taskRootPath}"
 - Status Exit Code: ${execRes.exitCode} (${execRes.success ? "SUKSES / 0 ERROR" : "TERJADI ERROR"})
@@ -412,14 +412,21 @@ ${execRes.stdout ? execRes.stdout.substring(0, 3000) : "(Kosong)"}
 - Error Log Output (STDERR):
 ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error stderr)"}
 
-(PENTING: PERINTAH TERSEBUT SUDAH SELESAI DIJALANKAN LANSUNG DI TERMINAL LOKAL. GUNAKAN DATA LOG REAL DI ATAS DALAM MEREAPON PAK NYONS!)
+(PENTING: PERINTAH TERSEBUT SUDAH SELESAI DIJALANKAN LANGSUNG DI TERMINAL LOKAL. GUNAKAN DATA LOG REAL DI ATAS DALAM MERESPON PAK NYONS!)
 `;
           }
 
-          // Auto-detect file/folder inspection requests from CEO
+          // Auto-detect file/folder inspection requests from CEO & auto-scan disk directory
           let fileInspectionContext = "";
           const lowerContent = content.toLowerCase();
-          if (lowerContent.includes("baca file") || lowerContent.includes("isi file") || lowerContent.includes("cek file") || lowerContent.includes("lihat file")) {
+          const wantsFolderCheck = lowerContent.includes("folder") || lowerContent.includes("file") || lowerContent.includes("cek") || lowerContent.includes("baca") || lowerContent.includes("lihat") || lowerContent.includes("skrip") || lowerContent.includes("script") || lowerContent.includes("struk");
+
+          if (wantsFolderCheck || !meeting.task) {
+            const dirContent = FileSystemService.scanDirectory(taskRootPath);
+            fileInspectionContext = `\n[HASIL MEMBACA STRUKTUR DIREKTORI REAL DISK LOKAL (${taskRootPath})]:\n${dirContent}\n`;
+          }
+
+          if (lowerContent.includes("baca file") || lowerContent.includes("isi file") || lowerContent.includes("cek file")) {
             const filePathMatch = content.match(/([a-zA-Z]:\\[^\s"]+\.[a-zA-Z0-9]+|[a-zA-Z]:\/[^\s"]+\.[a-zA-Z0-9]+|[a-zA-Z0-9_\-\.\:\/\\]+\.[a-zA-Z0-9]+)/);
             if (filePathMatch) {
               let targetFile = filePathMatch[0];
@@ -427,11 +434,8 @@ ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error stderr)
                 targetFile = path.join(taskRootPath, targetFile);
               }
               const fileContent = FileSystemService.readFileContent(targetFile);
-              fileInspectionContext = `\n[HASIL MEMBACA FILE DARI DISK LOKAL (${targetFile})]:\n${fileContent}\n`;
+              fileInspectionContext += `\n[HASIL MEMBACA ISI FILE REAL DARI DISK LOKAL (${targetFile})]:\n${fileContent}\n`;
             }
-          } else if (lowerContent.includes("baca folder") || lowerContent.includes("cek folder") || lowerContent.includes("lihat folder") || lowerContent.includes("isi folder") || lowerContent.includes("akses folder")) {
-            const dirContent = FileSystemService.scanDirectory(taskRootPath);
-            fileInspectionContext = `\n[HASIL MEMBACA STRUKTUR DIREKTORI DARI DISK LOKAL (${taskRootPath})]:\n${dirContent}\n`;
           }
 
           const prompt = `${respondingEmp.system_prompt}

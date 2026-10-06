@@ -109,6 +109,10 @@ ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error)"}
 `;
       }
 
+      // Auto-scan directory files for 1-on-1 chat context
+      const dirScanContext = FileSystemService.scanDirectory(sanitizedCwd);
+      const fileInspectionContext = `\n[HASIL MEMBACA REAL STRUKTUR DIREKTORI DISK LOKAL (${sanitizedCwd})]:\n${dirScanContext}\n`;
+
       // 4. Eksekusi AI Response via Hermes Engine System Prompt
       (async () => {
         try {
@@ -120,6 +124,8 @@ ${execRes.stderr ? execRes.stderr.substring(0, 3000) : "(Tidak ada error)"}
 - ANALISIS CERMAT & TELITI SEJAK PERTAMA KALI: Bedah masalah/error hingga ke akar-akarnya secara cermat sejak giliran pertama.
 - DILARANG SPAM KODE PANJANG INLINE: Jika meracik file kode baru/edit, sertakan baris header file (\`Target lokasi file: ${sanitizedCwd}\\nama_file.ext\`) agar sistem menulisnya di background di disk Pak Nyons.
 - DILARANG MENYURUH PAK NYONS MANUALLY: JANGAN PERNAH menyuruh Pak Nyons menyimpan file, menjalankan terminal, atau mencoba ulang secara manual! Semuanya sudah otomatis!
+- DILARANG HALUSINASI: Berikan jawaban berdasarkan data real dari disk lokal berikut:
+${fileInspectionContext}
 ${terminalLogContext}`;
 
           const rawAiResponseText = await AiRouterService.generateResponse(
