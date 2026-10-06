@@ -56,7 +56,7 @@ export class MeetingService {
     const devops = employees.find((e) => e.role === "DEVOPS");
 
     // Helper to send message with typing effect delay and emit to multiple rooms
-    const postAIMessage = async (emp: Employee, content: string, delayMs = 1500) => {
+    const postAIMessage = async (emp: Employee, content: string, delayMs = 2500) => {
       const typingData = { employeeName: emp.name, isTyping: true };
       io.emit(`meeting:typing:${meetingId}`, typingData);
       io.emit(`meeting:typing:${meeting.task.id}`, typingData);
