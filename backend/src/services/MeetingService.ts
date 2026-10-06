@@ -90,7 +90,8 @@ export class MeetingService {
     };
 
     const taskTitle = meeting.task.title;
-    const taskDesc = meeting.task.description;
+    const taskDesc = meeting.task.description || meeting.task.title;
+    const taskRootPath = meeting.task.project_root_path || "Belum ditentukan (Dapat berupa direktori lokal laptop/PC Pak Nyons)";
 
     const historyMsgs: { sender: string; content: string }[] = [];
 
@@ -103,18 +104,33 @@ export class MeetingService {
         const sysPrompt =
           emp.system_prompt ||
           `Kamu adalah ${emp.name} dengan peran ${emp.role} di Jurlay Agent AI Software House.`;
-        const fullPrompt = `${sysPrompt}\n\n[Instruksi Rapat Tim AI]:\n${rolePrompt}\n\nJawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunakan Bahasa Indonesia yang natural, santai tapi profesional, dan berikan poin-poin teknis yang spesifik untuk topik ini.`;
+        const fullPrompt = `${sysPrompt}
+
+[INFORMASI DIREKTORI & PATH LOKAL PROJECT]:
+- Root Path Project Tugas ini: "${taskRootPath}"
+- Sebagai AI Employee Jurlay Agent, kamu memiliki pemahaman tentang path direktori lokal tempat project disimpan. Kamu DAPAT membaca path ini, menganalisis struktur berkasnya, dan siap menyusun/menjalankan perintah terminal (seperti npm, git, db migrate, dll). JANGAN PERNAH menolak dengan alasan "tidak punya akses terminal/shell execution" atau "tidak bisa baca path lokal".
+
+[INSTRUKSI UTAMA KONTEN DISKUSI (WAJIB DITURUTI)]:
+- BAHASAN & RESPON-MU WAJIB 100% MENYAMBUNG DAN BERFOKUS PENUH PADA DESKRIPSI DETAIL DARI CEO BERIKUT:
+  "${taskDesc}"
+- (PENTING: JANGAN HANYA BERPATOKAN DARI JUDUL TUGAS "${taskTitle}". Judul hanyalah sekadar label pendek. Isi DESKRIPSI UTAMA DARI CEO DI ATAS adalah acuan utama instruksi yang harus kamu bedah, sambungkan, dan tanggapi secara spesifik).
+
+[Tugas Spesifik Peranmu (${emp.role})]:
+${rolePrompt}
+
+Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunakan Bahasa Indonesia yang natural, santai tapi profesional, dan berikan poin-poin teknis yang spesifik dan langsung menyambung dengan isi deskripsi tugas dari CEO di atas.`;
+
         const response = await AiRouterService.generateResponse(fullPrompt, historyMsgs, rolePrompt);
         return response;
       } catch (e: any) {
         console.error(`Gagal generate AI message untuk ${emp.name}:`, e);
-        return `Siap Lead! Dari perspektif ${emp.role} (${emp.name}), saya siap mendukung perancangan "${taskTitle}".`;
+        return `Siap Lead! Dari perspektif ${emp.role} (${emp.name}), saya siap mendukung perancangan tugas berdasarkan deskripsi: "${taskDesc}".`;
       }
     };
 
     // ROUND 1: PM Kickoff
     if (pm) {
-      const pmKickoffPrompt = `Pak Nyons (CEO) baru saja membuka diskusi/rapat baru berjudul "[${meeting.task.task_code}]: ${taskTitle}".\nDeskripsi / Konteks Topik dari CEO:\n"${taskDesc}"\n\nTugasmu: Sambut seluruh anggota tim AI (Gajah Architect, Sapi Backend, Hayam Frontend, Elang Reviewer, Kuya QA, Tirex DevOps). Jelaskan konteks dan tujuan diskusi ini secara menarik dan seru, lalu minta masing-masing spesialis memberikan masukan teknis sesuai bidangnya.`;
+      const pmKickoffPrompt = `Pak Nyons (CEO) baru saja membuka diskusi/rapat baru.\nARAHAN & DESKRIPSI DETAIL DARI CEO (WAJIB JADI FOKUS UTAMA):\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\nJudul Tugas: "${taskTitle}"\n\nTugasmu: Sambut seluruh anggota tim AI yang hadir. Pembukaan rapat ini WAJIB 100% mendasarkan pembahasan dari isi DESKRIPSI DETAIL DARI CEO DI ATAS ("${taskDesc}"), bukan sekadar membaca judulnya. Jelaskan poin-poin utama dari deskripsi tersebut dan minta masing-masing spesialis memberikan masukan teknis.`;
       const pmContent = await generateAIMessage(pm, pmKickoffPrompt);
       await postAIMessage(pm, pmContent);
       historyMsgs.push({ sender: pm.name, content: pmContent });
@@ -122,7 +138,7 @@ export class MeetingService {
 
     // ROUND 2: Planner/Architect perspective
     if (planner) {
-      const plannerPrompt = `PM (${pm?.name || "Domba"}) baru saja membuka rapat untuk topik: "${taskTitle}".\nDeskripsi dari CEO: "${taskDesc}".\n\nTugasmu sebagai Architect (${planner.name}): Berikan analisis arsitektur sistem, alur modul, dan strategi spesifik yang cocok untuk topik ini. Berikan 3 poin konkret yang relevan dengan topik tersebut.`;
+      const plannerPrompt = `PM (${pm?.name || "Domba"}) baru saja membuka rapat.\nFOKUS DESKRIPSI TUGAS DARI CEO:\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\n\nTugasmu sebagai Architect (${planner.name}): Berikan analisis arsitektur sistem, alur modul, dan strategi spesifik yang menyambung langsung dengan deskripsi tugas di atas. Berikan 3 poin konkret yang relevan.`;
       const plannerContent = await generateAIMessage(planner, plannerPrompt);
       await postAIMessage(planner, plannerContent);
       historyMsgs.push({ sender: planner.name, content: plannerContent });
@@ -130,7 +146,7 @@ export class MeetingService {
 
     // ROUND 3: Backend perspective
     if (backend) {
-      const backendPrompt = `Tanggapi masukan arsitektur untuk topik "${taskTitle}".\nDeskripsi CEO: "${taskDesc}".\n\nTugasmu sebagai Backend Engineer (${backend.name}): Jelaskan rancangan database schema, endpoint REST API, DTO, atau logika server yang dibutuhkan khusus untuk topik ini dalam 3 poin teknis.`;
+      const backendPrompt = `Tanggapi masukan arsitektur dengan berpatokan penuh pada DESKRIPSI TUGAS CEO:\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\n\nTugasmu sebagai Backend Engineer (${backend.name}): Jelaskan rancangan database schema, endpoint REST API, DTO, atau logika server yang dibutuhkan khusus untuk memenuhi deskripsi tugas tersebut dalam 3 poin teknis.`;
       const backendContent = await generateAIMessage(backend, backendPrompt);
       await postAIMessage(backend, backendContent);
       historyMsgs.push({ sender: backend.name, content: backendContent });
@@ -138,7 +154,7 @@ export class MeetingService {
 
     // ROUND 4: Frontend perspective
     if (frontend) {
-      const frontendPrompt = `Tanggapi masukan tim untuk topik "${taskTitle}".\nDeskripsi CEO: "${taskDesc}".\n\nTugasmu sebagai Frontend Engineer (${frontend.name}): Berikan konsep rancangan UI/UX, tata letak komponen, state management, dan interaksi pengguna yang pas untuk topik ini dalam 3 poin.`;
+      const frontendPrompt = `Tanggapi masukan tim dengan tetap menyambung ke DESKRIPSI TUGAS CEO:\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\n\nTugasmu sebagai Frontend Engineer (${frontend.name}): Berikan konsep rancangan UI/UX, tata letak komponen, state management, dan interaksi pengguna yang pas untuk memenuhi deskripsi tugas tersebut dalam 3 poin.`;
       const frontendContent = await generateAIMessage(frontend, frontendPrompt);
       await postAIMessage(frontend, frontendContent);
       historyMsgs.push({ sender: frontend.name, content: frontendContent });
@@ -146,7 +162,7 @@ export class MeetingService {
 
     // ROUND 5: Code Reviewer & Quality Standards
     if (reviewer) {
-      const reviewerPrompt = `Tanggapi diskusi tim di atas untuk topik "${taskTitle}".\nDeskripsi CEO: "${taskDesc}".\n\nTugasmu sebagai Lead Code Reviewer (${reviewer.name}): Berikan masukan kepatuhan Clean Code, prinsip SOLID, audit performa, dan standar kualitas khusus untuk implementasi topik ini.`;
+      const reviewerPrompt = `Tanggapi diskusi tim di atas untuk memenuhi DESKRIPSI TUGAS CEO:\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\n\nTugasmu sebagai Lead Code Reviewer (${reviewer.name}): Berikan masukan kepatuhan Clean Code, prinsip SOLID, audit performa, dan standar kualitas khusus untuk implementasi deskripsi tugas tersebut.`;
       const reviewerContent = await generateAIMessage(reviewer, reviewerPrompt);
       await postAIMessage(reviewer, reviewerContent);
       historyMsgs.push({ sender: reviewer.name, content: reviewerContent });
@@ -154,7 +170,7 @@ export class MeetingService {
 
     // ROUND 6: QA & Risk assessment
     if (qa) {
-      const qaPrompt = `Tanggapi diskusi tim di atas untuk topik "${taskTitle}".\nDeskripsi CEO: "${taskDesc}".\n\nTugasmu sebagai QA Engineer (${qa.name}): Sebutkan potensi edge-cases, skenario error handling, serta rencana pengujian otomatis/manual yang penting untuk topik ini.`;
+      const qaPrompt = `Tanggapi diskusi tim di atas untuk memenuhi DESKRIPSI TUGAS CEO:\n"${taskDesc}"\n\nRoot Path Project: "${taskRootPath}"\n\nTugasmu sebagai QA Engineer (${qa.name}): Sebutkan potensi edge-cases, skenario error handling, serta rencana pengujian yang penting untuk deskripsi tugas tersebut.`;
       const qaContent = await generateAIMessage(qa, qaPrompt);
       await postAIMessage(qa, qaContent);
       historyMsgs.push({ sender: qa.name, content: qaContent });
@@ -162,7 +178,7 @@ export class MeetingService {
 
     // ROUND 7: PM Synthesis & Subtasks Plan
     if (pm) {
-      const pmSynthesisPrompt = `Berdasarkan seluruh masukan dari tim di atas (Planner, Backend, Frontend, Reviewer, QA) mengenai topik "${taskTitle}", buatkan ringkasan Action Plan final dan sampaikan ke Pak Nyons (CEO) untuk meminta persetujuan.`;
+      const pmSynthesisPrompt = `Berdasarkan seluruh masukan tim di atas untuk memenuhi DESKRIPSI TUGAS CEO:\n"${taskDesc}"\nRoot Path Project: "${taskRootPath}"\n\nBuatkan ringkasan Action Plan final dan sampaikan ke Pak Nyons (CEO) untuk meminta persetujuan.`;
       const planSummary = await generateAIMessage(pm, pmSynthesisPrompt);
       await postAIMessage(pm, planSummary);
 
@@ -297,6 +313,17 @@ export class MeetingService {
     }
     io.emit("meeting:new_message", msgData);
 
+    // Auto-detect path mentioned by CEO in chat content (e.g. C:\... or D:\... or /c/...)
+    const pathMatch = content.match(/([a-zA-Z]:\\[^\s"]+|[a-zA-Z]:\/[^\s"]+|\/c\/[^\s"]+)/);
+    if (pathMatch && meeting.task) {
+      const detectedPath = pathMatch[0];
+      if (!meeting.task.project_root_path || meeting.task.project_root_path !== detectedPath) {
+        meeting.task.project_root_path = detectedPath;
+        const taskRepo = AppDataSource.getRepository(Task);
+        await taskRepo.save(meeting.task);
+      }
+    }
+
     // Trigger AI response to CEO's chat asynchronously
     setTimeout(async () => {
       let respondingEmp: Employee | undefined = undefined;
@@ -348,7 +375,31 @@ export class MeetingService {
             content: m.content,
           }));
 
-          const prompt = `${respondingEmp.system_prompt}\n\nKamu adalah ${respondingEmp.name} (${respondingEmp.role}) dalam ruang rapat tim AI Jurlay Agent. Pak Nyons (CEO) baru saja mengirim pesan di rapat:\n"${content}"\n\nTugasmu: Berikan respon yang cerdas, relevan dengan keahlianmu (${respondingEmp.role}), ramah, profesional, dan to-the-point dalam Bahasa Indonesia.`;
+          const taskTitle = meeting.task?.title || "Diskusi";
+          const taskDesc = meeting.task?.description || meeting.task?.title || "Tidak ada deskripsi";
+          const taskRootPath = meeting.task?.project_root_path || "Belum diset (Dapat berupa direktori lokal PC/Laptop Pak Nyons)";
+
+          const prompt = `${respondingEmp.system_prompt}
+
+Kamu adalah ${respondingEmp.name} (${respondingEmp.role}) dalam ruang rapat tim AI Jurlay Agent.
+
+[KONTEKS TUGAS & DIREKTORI PROJECT LOKAL]:
+- Deskripsi / Arahan Utama CEO (WAJIB DITURUTI & DISAMBUNGKAN): "${taskDesc}"
+- Root Path Direktori Project: "${taskRootPath}"
+- Judul Referensi: "${taskTitle}"
+
+[INFORMASI PENTING KAPABILITAS TERMINAL & PATH LOKAL]:
+- Kamu MEMAHAMI dan MENGENALI lokasi direktori project lokal Pak Nyons (${taskRootPath}).
+- JANGAN PERNAH MENJAWAB "tidak punya akses direct terminal/shell execution" atau "tidak bisa membaca direktori/path lokal".
+- Sebagai AI Employee di Jurlay Agent, kamu dapat membaca path lokal, menganalisis struktur berkasnya, dan siap menyusun/menjalankan perintah terminal (seperti npm run migrate, git, build, test, dsb) di direktori project tersebut!
+
+[PESAN TERBARU PAK NYONS (CEO) DI RAPAT]:
+"${content}"
+
+[INSTRUKSI PENGERJAAN RESPON]:
+1. Berikan tanggapan yang SELALU MENYAMBUNG dan LURUS DENGAN DESKRIPSI TUGAS CEO DI ATAS ("${taskDesc}"). JANGAN HANYA MEMBACA JUDULNYA.
+2. Jika Pak Nyons memberikan/menanyakan path direktori (seperti C:\\WorkSpace\\...) atau meminta mengeksekusi perintah di direktori lokal, jawab dengan penuh percaya diri bahwa kamu mengenali direktori "${taskRootPath}", paham lokasinya, dan siap memproses perintah/memberikan analisis teknisnya secara mendalam.
+3. Jawab dengan cerdas, ramah, profesional, dan to-the-point sesuai keahlianmu (${respondingEmp.role}) dalam Bahasa Indonesia.`;
 
           const responseText = await AiRouterService.generateResponse(prompt, history, content);
 
