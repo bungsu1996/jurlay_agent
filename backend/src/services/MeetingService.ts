@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import { AiRouterService } from "./AiRouterService";
 import { TerminalService } from "./TerminalService";
+import { HermesBridgeService } from "./HermesBridgeService";
 import { FileSystemService } from "./FileSystemService";
 
 export class MeetingService {
@@ -380,7 +381,8 @@ Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunaka
 
           const taskTitle = meeting.task?.title || "Diskusi";
           const taskDesc = meeting.task?.description || meeting.task?.title || "Tidak ada deskripsi";
-          const taskRootPath = meeting.task?.project_root_path || process.cwd();
+          const rawTaskRootPath = meeting.task?.project_root_path || process.cwd();
+          const taskRootPath = HermesBridgeService.sanitizePath(rawTaskRootPath);
 
           // Auto-extract command if CEO asks to run/execute something
           const extractCommandToRun = (text: string): string | null => {
@@ -398,8 +400,8 @@ Jawablah sesuai karakter kepribadianmu sebagai ${emp.name} (${emp.role}). Gunaka
           let terminalLogContext = "";
 
           if (detectedCmd) {
-            console.log(`[MeetingService] Executing real command "${detectedCmd}" in "${taskRootPath}" for CEO request...`);
-            const execRes = await TerminalService.executeCommand(taskRootPath, detectedCmd);
+            console.log(`[MeetingService] Executing command via Hermes Bridge: "${detectedCmd}" in sanitized path "${taskRootPath}" for CEO...`);
+            const execRes = await HermesBridgeService.executeCommand(taskRootPath, detectedCmd);
             terminalLogContext = `
 [HASIL EKSEKUSI REAL TERMINAL LOKAL PC PAK NYONS]:
 - Perintah yang Dijalankan: "${detectedCmd}"

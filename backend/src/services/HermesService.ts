@@ -10,6 +10,8 @@ import { Task } from "../entities/Task";
 import { Server } from "socket.io";
 import { AiRouterService } from "./AiRouterService";
 
+import { HermesBridgeService } from "./HermesBridgeService";
+
 export class HermesService {
   private static profilesDir = path.join(os.homedir(), ".hermes", "profiles");
 
@@ -92,18 +94,11 @@ tools:
     await logAndEmit("INFO", `🚀 [${employee.name}] Memulai pengerjaan: "${subTask.title}"...`);
     await logAndEmit("INFO", `Deskripsi Sub-task: ${subTask.description}`);
 
-    const targetDir = projectPath || task.github_project?.local_path || process.cwd();
+    const rawTargetDir = projectPath || task.github_project?.local_path || process.cwd();
+    const targetDir = HermesBridgeService.sanitizePath(rawTargetDir);
     await logAndEmit("INFO", `Direktori Kerja: ${targetDir}`);
 
-    // Dynamic hermes CLI detection across OS
-    const possibleHermesPaths = [
-      path.join(process.env.LOCALAPPDATA || "", "hermes", "hermes-agent", ".hermes", "bin", "hermes.cmd"),
-      path.join(process.env.LOCALAPPDATA || "", "hermes", "hermes-agent", ".hermes", "bin", "hermes.exe"),
-      path.join(process.env.HOME || os.homedir(), ".local", "bin", "hermes"),
-      "/Users/apple/.local/bin/hermes",
-    ];
-
-    let hermesPath = possibleHermesPaths.find((p) => p && fs.existsSync(p)) || "";
+    const hermesPath = HermesBridgeService.getHermesCliPath();
 
     const prompt = `Kamu adalah ${employee.name} (${employee.role}) di JURLAY AGENT.
 Konteks Task Utama: ${task.title}
