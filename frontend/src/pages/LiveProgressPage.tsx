@@ -65,7 +65,12 @@ export const LiveProgressPage: React.FC<LiveProgressPageProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const currentTask = tasks.find((t) => t.id === selectedTaskId) || tasks[0];
+  const activeProgressTasks = tasks.filter((t) => t.status !== "DONE");
+  const currentTask =
+    activeProgressTasks.find((t) => t.id === selectedTaskId) ||
+    activeProgressTasks[0] ||
+    tasks.find((t) => t.id === selectedTaskId) ||
+    tasks[0];
 
   useEffect(() => {
     if (currentTask && currentTask.id !== selectedTaskId) {
@@ -267,7 +272,7 @@ export const LiveProgressPage: React.FC<LiveProgressPageProps> = ({
               onChange={(e) => onSelectTask(e.target.value)}
               className="mt-0.5 block w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-red-500 truncate"
             >
-              {tasks.map((t) => (
+              {(activeProgressTasks.length > 0 ? activeProgressTasks : tasks).map((t) => (
                 <option key={t.id} value={t.id}>
                   [{t.task_code}] {t.title}
                 </option>
